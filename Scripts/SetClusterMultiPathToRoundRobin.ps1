@@ -9,21 +9,16 @@
  OS Version: Windows 10
 #>
 
-#Check for any Fibre Channel devices that are not set to Round Robin in a cluster.
-#Get-Cluster -Name CLUSTERNAME | Get-VMhost | Get-VMHostHba -Type "FibreChannel" | Get-ScsiLun -LunType disk | Where { $_.MultipathPolicy -notlike "RoundRobin" } | Select CanonicalName,MultipathPolicy
-
-#Set the Multipathing Policy to Round Robin for any Fibre Channel devices that are not Round Robin in a cluster
-$cluster = Get-Cluster CLUSTERNAME
-$hostlist = Get-VMHost -Location $cluster | Sort Name
-$TotalHostCount = $hostlist.count
-$hostincrement = 0
-while ($hostincrement -lt $TotalHostCount){		#Host Loop
-	$currenthost = $hostlist[$hostincrement].Name
-	Write-Host "Working on" $currenthost
-	$scsilun = Get-VMhost $currenthost | Get-VMHostHba -Type "FibreChannel" | Get-ScsiLun -LunType disk | Where { $_.MultipathPolicy -notlike "RoundRobin" }
+#Set the Multipathing Policy to Round Robin and IOPS to 1 for all fibre channel 3Par disks. This is an HPE best practice.
+$pathpolicy="RoundRobin"
+$iops="1"
+$vendor="3PARdata"
+$AllESXHosts = Get-VMHost -Location CLUSTERNAME | Sort Name
+Foreach ($esxhost in $AllESXHosts) {
+	Write-Host "Working on" $esxhost
+	$scsilun = Get-VMhost $esxhost | Get-VMHostHba -Type "FibreChannel" | Get-ScsiLun -LunType disk | Where-Object {$_.Vendor -like $vendor -and ($_.MultipathPolicy -notlike $pathpolicy -or $_.CommandsToSwitchPath -ne $iops)}
 	if ($scsilun -ne $null){
-		Set-ScsiLun -ScsiLun $scsilun -MultipathPolicy RoundRobin	
+	Set-ScsiLun -ScsiLun $scsilun -MultipathPolicy $pathpolicy -CommandsToSwitchPath $iops
 	}
-	$hostincrement++	#bump the host increment
 }
 #The End
