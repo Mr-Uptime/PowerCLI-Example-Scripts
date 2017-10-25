@@ -1,0 +1,17 @@
+<#
+ Script name: VerifyMultiPath.ps1
+ Created on: 10/25/2017
+ Author: Alan Comstock, @Mr_Uptime
+ Description: Checks Multipath settings for each host and disk.  Change CLUSTERNAME to the cluster/datacenter you want to check. Change $vendor to the type of storage you want to check.
+ Dependencies: None known
+ PowerCLI Version: VMware PowerCLI 6.5 Release 1 build 4624819
+ PowerShell Version: 5.1.14393.1532
+ OS Version: Windows 10
+#>
+
+$AllESXHosts = Get-VMHost -Location CLUSTERNAME | Sort Name
+$vendor="3PARdata"
+Foreach ($esxhost in $AllESXHosts) {
+	Write-Host $esxhost
+	Get-VMhost $esxhost | Get-ScsiLun -LunType disk | Where-Object {$_.Vendor -like $vendor} | Select Vendor,MultipathPolicy,CommandsToSwitchPath,CapacityGB,CanonicalName | format-table -Autosize
+}
